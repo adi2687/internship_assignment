@@ -5,8 +5,8 @@ const multer = require('multer');
 require('dotenv').config();
 
 // Import routes and database utilities
-const schoolRoutes = require('./routes/schoolRoutes');
-const { initialize } = require('./utils/dbInit');
+const schoolRoutes = require('../routes/schoolRoutes');
+const { initialize } = require('../utils/dbInit');
 
 // Initialize express app
 const app = express();
