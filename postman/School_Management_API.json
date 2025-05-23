@@ -1,0 +1,68 @@
+{
+  "info": {
+    "_postman_id": "b5e7a1e3-5b8d-4f5a-9c7e-8f3d2a6b4c5d",
+    "name": "School Management API",
+    "description": "A collection for testing the School Management API endpoints",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Add School",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Example School\",\n  \"address\": \"123 Education Street, City\",\n  \"latitude\": 12.345678,\n  \"longitude\": 98.765432\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/addSchool",
+          "host": ["{{base_url}}"],
+          "path": ["api", "addSchool"]
+        },
+        "description": "Add a new school to the database"
+      },
+      "response": []
+    },
+    {
+      "name": "List Schools",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/listSchools?latitude=12.345678&longitude=98.765432",
+          "host": ["{{base_url}}"],
+          "path": ["api", "listSchools"],
+          "query": [
+            {
+              "key": "latitude",
+              "value": "12.345678",
+              "description": "User's latitude"
+            },
+            {
+              "key": "longitude",
+              "value": "98.765432",
+              "description": "User's longitude"
+            }
+          ]
+        },
+        "description": "List all schools sorted by proximity to the user's location"
+      },
+      "response": []
+    }
+  ],
+  "event": [],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string",
+      "description": "Base URL for the API"
+    }
+  ]
+}
