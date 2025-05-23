@@ -2,14 +2,12 @@ const { Sequelize, DataTypes } = require('sequelize');
 require('dotenv').config();
 const path = require('path');
 
-// Create a Sequelize instance with SQLite
 const sequelize = new Sequelize({
   dialect: 'sqlite',
   storage: path.join(__dirname, '../database.sqlite'),
   logging: console.log
 });
 
-// Define School model
 const School = sequelize.define('School', {
   id: {
     type: DataTypes.INTEGER,
@@ -38,16 +36,13 @@ const School = sequelize.define('School', {
   updatedAt: false
 });
 
-// Function to initialize database and create tables
 async function initDatabase() {
   try {
     console.log('Attempting to connect to SQLite database...');
     
-    // Test the connection
     await sequelize.authenticate();
     console.log('Connection to SQLite database has been established successfully.');
     
-    // Sync all models with the database
     console.log('Syncing database models...');
     await sequelize.sync();
     console.log('Database synchronized successfully');

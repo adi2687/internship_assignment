@@ -1,27 +1,20 @@
 const { School } = require('../config/db');
 
-// Function to calculate distance between two coordinates using Haversine formula
 function calculateDistance(lat1, lon1, lat2, lon2) {
-  // Convert latitude and longitude from degrees to radians
   const radLat1 = Math.PI * lat1 / 180;
   const radLat2 = Math.PI * lat2 / 180;
   const radDelta1 = Math.PI * (lat2 - lat1) / 180;
   const radDelta2 = Math.PI * (lon2 - lon1) / 180;
 
-  // Haversine formula
   const a = Math.sin(radDelta1 / 2) * Math.sin(radDelta1 / 2) +
             Math.cos(radLat1) * Math.cos(radLat2) *
             Math.sin(radDelta2 / 2) * Math.sin(radDelta2 / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   
-  // Earth's radius in kilometers
   const R = 6371;
-  
-  // Distance in kilometers
   return R * c;
 }
 
-// Validate school data
 function validateSchoolData(data) {
   const { name, address, latitude, longitude } = data;
   const errors = [];
@@ -55,20 +48,16 @@ function validateSchoolData(data) {
   return errors;
 }
 
-// Add School API
 exports.addSchool = async (req, res) => {
   try {
     console.log('Full request body:', req.body);
     
-    // Check if req.body is defined
     if (!req.body) {
       return res.status(400).json({
         success: false,
         message: 'Request body is missing. Please provide the required data.'
       });
     }
-    
-    // Extract data from request body (works with both JSON and form data)
     const name = req.body.name;
     const address = req.body.address;
     const latitude = req.body.latitude;
@@ -76,7 +65,6 @@ exports.addSchool = async (req, res) => {
     
     console.log('Extracted data:', { name, address, latitude, longitude });
     
-    // Check if required fields are present
     if (!name || !address || !latitude || !longitude) {
       return res.status(400).json({
         success: false,
@@ -84,13 +72,11 @@ exports.addSchool = async (req, res) => {
       });
     }
     
-    // Validate input data
     const validationErrors = validateSchoolData(req.body);
     if (validationErrors.length > 0) {
       return res.status(400).json({ success: false, errors: validationErrors });
     }
 
-    // Insert school into database using Sequelize
     const school = await School.create({
       name,
       address,
@@ -115,7 +101,6 @@ exports.addSchool = async (req, res) => {
   }
 };
 
-// List Schools API
 exports.listSchools = async (req, res) => {
   try {
     console.log('Query parameters:', req.query);
@@ -134,7 +119,6 @@ exports.listSchools = async (req, res) => {
     const userLat = parseFloat(latitude);
     const userLon = parseFloat(longitude);
 
-    // Validate latitude and longitude ranges
     if (userLat < -90 || userLat > 90 || userLon < -180 || userLon > 180) {
       return res.status(400).json({
         success: false,
@@ -142,10 +126,8 @@ exports.listSchools = async (req, res) => {
       });
     }
 
-    // Fetch all schools from database using Sequelize
     const schools = await School.findAll();
 
-    // Calculate distance for each school and add it to the school object
     const schoolsWithDistance = schools.map(school => {
       const schoolData = school.get({ plain: true });
       const distance = calculateDistance(
@@ -157,7 +139,6 @@ exports.listSchools = async (req, res) => {
       return { ...schoolData, distance };
     });
 
-    // Sort schools by distance (closest first)
     schoolsWithDistance.sort((a, b) => a.distance - b.distance);
 
     res.status(200).json({
