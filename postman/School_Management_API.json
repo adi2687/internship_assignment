@@ -7,7 +7,7 @@
   },
   "item": [
     {
-      "name": "Add School",
+      "name": "Add School (JSON)",
       "request": {
         "method": "POST",
         "header": [
@@ -25,7 +25,46 @@
           "host": ["{{base_url}}"],
           "path": ["api", "addSchool"]
         },
-        "description": "Add a new school to the database"
+        "description": "Add a new school to the database using JSON format"
+      },
+      "response": []
+    },
+    {
+      "name": "Add School (Form Data)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "name",
+              "value": "Example School (Form)",
+              "type": "text"
+            },
+            {
+              "key": "address",
+              "value": "456 Learning Avenue, Town",
+              "type": "text"
+            },
+            {
+              "key": "latitude",
+              "value": "11.223344",
+              "type": "text"
+            },
+            {
+              "key": "longitude",
+              "value": "55.667788",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/addSchool",
+          "host": ["{{base_url}}"],
+          "path": ["api", "addSchool"]
+        },
+        "description": "Add a new school to the database using form data"
       },
       "response": []
     },
