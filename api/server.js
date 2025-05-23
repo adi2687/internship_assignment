@@ -1,21 +1,76 @@
+// Serverless API route for Vercel
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
 const multer = require('multer');
-require('dotenv').config();
 
-const schoolRoutes = require('../routes/schoolRoutes');
-const { initialize } = require('../utils/dbInit');
-
+// Create Express app
 const app = express();
 
+// Middleware
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// For handling form data
 const upload = multer();
 
+// In-memory data store for schools (since we can't use SQLite on Vercel)
+// This is temporary and will reset when the function is redeployed
+// In production, you would use a database like MongoDB, PostgreSQL, etc.
+let schools = [];
+let lastId = 0;
 
+// Function to calculate distance between two coordinates using Haversine formula
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const radLat1 = Math.PI * lat1 / 180;
+  const radLat2 = Math.PI * lat2 / 180;
+  const radDelta1 = Math.PI * (lat2 - lat1) / 180;
+  const radDelta2 = Math.PI * (lon2 - lon1) / 180;
+
+  const a = Math.sin(radDelta1 / 2) * Math.sin(radDelta1 / 2) +
+            Math.cos(radLat1) * Math.cos(radLat2) *
+            Math.sin(radDelta2 / 2) * Math.sin(radDelta2 / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  
+  const R = 6371; // Earth's radius in kilometers
+  return R * c;
+}
+
+// Validate school data
+function validateSchoolData(data) {
+  const { name, address, latitude, longitude } = data;
+  const errors = [];
+
+  if (!name || typeof name !== 'string' || name.trim() === '') {
+    errors.push('Name is required and must be a non-empty string');
+  }
+
+  if (!address || typeof address !== 'string' || address.trim() === '') {
+    errors.push('Address is required and must be a non-empty string');
+  }
+
+  if (latitude === undefined || isNaN(parseFloat(latitude))) {
+    errors.push('Latitude is required and must be a valid number');
+  } else {
+    const lat = parseFloat(latitude);
+    if (lat < -90 || lat > 90) {
+      errors.push('Latitude must be between -90 and 90 degrees');
+    }
+  }
+
+  if (longitude === undefined || isNaN(parseFloat(longitude))) {
+    errors.push('Longitude is required and must be a valid number');
+  } else {
+    const lon = parseFloat(longitude);
+    if (lon < -180 || lon > 180) {
+      errors.push('Longitude must be between -180 and 180 degrees');
+    }
+  }
+
+  return errors;
+}
+
+// Debug middleware
 app.use((req, res, next) => {
   console.log('Request Method:', req.method);
   console.log('Request URL:', req.url);
@@ -24,54 +79,117 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use('/api', schoolRoutes);
-
+// Root route
 app.get('/', (req, res) => {
   res.json({ message: 'Welcome to School Management API' });
 });
 
-const PORT = process.env.PORT || 3000;
-
-console.log('Starting server initialization...');
-initialize().then(() => {
-  console.log('Database initialized, starting HTTP server...');
-  
+// Add School API
+app.post('/api/addSchool', upload.none(), async (req, res) => {
   try {
-    const server = app.listen(PORT, () => {
-      console.log(`=================================================`);
-      console.log(`Server is running on port ${PORT}`);
-      console.log(`=================================================`);
-      console.log('API endpoints available at:');
-      console.log(`- Add School: http://localhost:${PORT}/api/addSchool`);
-      console.log(`- List Schools: http://localhost:${PORT}/api/listSchools?latitude=12.345678&longitude=98.765432`);
-      console.log(`=================================================`);
-      console.log('Server is ready to accept requests');
-    });
+    console.log('Full request body:', req.body);
     
-    server.on('error', (error) => {
-      console.error('Server error:', error);
-    });
-    
-    process.on('uncaughtException', (err) => {
-      console.error('Uncaught Exception:', err);
-      console.log('Server will continue running');
-    });
-    
-    process.on('SIGINT', () => {
-      console.log('Gracefully shutting down from SIGINT (Ctrl+C)');
-      server.close(() => {
-        console.log('Server closed');
-        process.exit(0);
+    if (!req.body) {
+      return res.status(400).json({
+        success: false,
+        message: 'Request body is missing. Please provide the required data.'
       });
-    });
+    }
     
-    console.log('Setting up keepalive...');
-    setInterval(() => { console.log('Server is still running...'); }, 60000);
+    const name = req.body.name;
+    const address = req.body.address;
+    const latitude = req.body.latitude;
+    const longitude = req.body.longitude;
+    
+    console.log('Extracted data:', { name, address, latitude, longitude });
+    
+    if (!name || !address || !latitude || !longitude) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields: name, address, latitude, and longitude are all required.'
+      });
+    }
+    
+    const validationErrors = validateSchoolData(req.body);
+    if (validationErrors.length > 0) {
+      return res.status(400).json({ success: false, errors: validationErrors });
+    }
+
+    // Create new school with incremented ID
+    lastId++;
+    const newSchool = {
+      id: lastId,
+      name,
+      address,
+      latitude: parseFloat(latitude),
+      longitude: parseFloat(longitude),
+      created_at: new Date().toISOString()
+    };
+    
+    // Add to in-memory store
+    schools.push(newSchool);
+
+    res.status(201).json({
+      success: true,
+      message: 'School added successfully',
+      data: newSchool
+    });
   } catch (error) {
-    console.error('Error starting server:', error);
+    console.error('Error adding school:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
-}).catch(err => {
-  console.error('Failed to start server:', err);
-  console.error('Error details:', err.stack);
-  console.log('Press Ctrl+C to exit');
 });
+
+// List Schools API
+app.get('/api/listSchools', async (req, res) => {
+  try {
+    console.log('Query parameters:', req.query);
+    
+    const latitude = req.query.latitude;
+    const longitude = req.query.longitude;
+    
+    // Validate user coordinates
+    if (!latitude || !longitude || isNaN(parseFloat(latitude)) || isNaN(parseFloat(longitude))) {
+      return res.status(400).json({
+        success: false,
+        message: 'Valid latitude and longitude parameters are required'
+      });
+    }
+
+    const userLat = parseFloat(latitude);
+    const userLon = parseFloat(longitude);
+
+    if (userLat < -90 || userLat > 90 || userLon < -180 || userLon > 180) {
+      return res.status(400).json({
+        success: false,
+        message: 'Latitude must be between -90 and 90, and longitude must be between -180 and 180'
+      });
+    }
+
+    // Calculate distance for each school and add it to the school object
+    const schoolsWithDistance = schools.map(school => {
+      const distance = calculateDistance(
+        userLat,
+        userLon,
+        school.latitude,
+        school.longitude
+      );
+      return { ...school, distance };
+    });
+
+    // Sort schools by distance (closest first)
+    schoolsWithDistance.sort((a, b) => a.distance - b.distance);
+
+    res.status(200).json({
+      success: true,
+      message: 'Schools retrieved successfully',
+      data: schoolsWithDistance
+    });
+  } catch (error) {
+    console.error('Error listing schools:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// Export the Express API
+module.exports = app;
