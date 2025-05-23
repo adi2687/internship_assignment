@@ -1,26 +1,18 @@
-// Serverless API route for Vercel
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
 
-// Create Express app
 const app = express();
 
-// Middleware
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// For handling form data
 const upload = multer();
 
-// In-memory data store for schools (since we can't use SQLite on Vercel)
-// This is temporary and will reset when the function is redeployed
-// In production, you would use a database like MongoDB, PostgreSQL, etc.
 let schools = [];
 let lastId = 0;
 
-// Function to calculate distance between two coordinates using Haversine formula
 function calculateDistance(lat1, lon1, lat2, lon2) {
   const radLat1 = Math.PI * lat1 / 180;
   const radLat2 = Math.PI * lat2 / 180;
@@ -32,11 +24,10 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
             Math.sin(radDelta2 / 2) * Math.sin(radDelta2 / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   
-  const R = 6371; // Earth's radius in kilometers
+  const R = 6371; 
   return R * c;
 }
 
-// Validate school data
 function validateSchoolData(data) {
   const { name, address, latitude, longitude } = data;
   const errors = [];
@@ -70,7 +61,6 @@ function validateSchoolData(data) {
   return errors;
 }
 
-// Debug middleware
 app.use((req, res, next) => {
   console.log('Request Method:', req.method);
   console.log('Request URL:', req.url);
@@ -79,12 +69,9 @@ app.use((req, res, next) => {
   next();
 });
 
-// Root route
 app.get('/', (req, res) => {
   res.json({ message: 'Welcome to School Management API' });
 });
-
-// Add School API
 app.post('/api/addSchool', upload.none(), async (req, res) => {
   try {
     console.log('Full request body:', req.body);
@@ -115,7 +102,6 @@ app.post('/api/addSchool', upload.none(), async (req, res) => {
       return res.status(400).json({ success: false, errors: validationErrors });
     }
 
-    // Create new school with incremented ID
     lastId++;
     const newSchool = {
       id: lastId,
@@ -126,7 +112,6 @@ app.post('/api/addSchool', upload.none(), async (req, res) => {
       created_at: new Date().toISOString()
     };
     
-    // Add to in-memory store
     schools.push(newSchool);
 
     res.status(201).json({
@@ -140,7 +125,6 @@ app.post('/api/addSchool', upload.none(), async (req, res) => {
   }
 });
 
-// List Schools API
 app.get('/api/listSchools', async (req, res) => {
   try {
     console.log('Query parameters:', req.query);
@@ -148,7 +132,6 @@ app.get('/api/listSchools', async (req, res) => {
     const latitude = req.query.latitude;
     const longitude = req.query.longitude;
     
-    // Validate user coordinates
     if (!latitude || !longitude || isNaN(parseFloat(latitude)) || isNaN(parseFloat(longitude))) {
       return res.status(400).json({
         success: false,
@@ -166,7 +149,6 @@ app.get('/api/listSchools', async (req, res) => {
       });
     }
 
-    // Calculate distance for each school and add it to the school object
     const schoolsWithDistance = schools.map(school => {
       const distance = calculateDistance(
         userLat,
@@ -177,7 +159,6 @@ app.get('/api/listSchools', async (req, res) => {
       return { ...school, distance };
     });
 
-    // Sort schools by distance (closest first)
     schoolsWithDistance.sort((a, b) => a.distance - b.distance);
 
     res.status(200).json({
@@ -191,5 +172,4 @@ app.get('/api/listSchools', async (req, res) => {
   }
 });
 
-// Export the Express API
 module.exports = app;
